@@ -51,4 +51,57 @@ contract DeVault is BaseWallet {
     function getVault(uint vaultKeyHash) public view returns (string memory) {
         return _vaults[vaultKeyHash];
     }
+
+    // == recover ==
+
+    event SetRecover(
+        address[] guardians,
+        uint needGuardiansNum,
+        uint nonce
+    );
+
+    address[] public guardians;
+    uint public needGuardiansNum;
+    address[] public doneGuardians;
+    uint public preparePasswordHash;
+
+    function setRecover(
+        address[] memory _guardians,
+        uint _needGuardiansNum,
+        uint[8] memory proofs,
+        uint expiration,
+        uint allHash
+    ) external {
+        require(
+            _needGuardiansNum > 0 && _needGuardiansNum <= _guardians.length,
+            "DeVault:: needGuardiansNum error"
+        );
+
+        uint nonce = getNonce();
+
+        uint dataHash = uint(keccak256(abi.encodePacked(_guardians, _needGuardiansNum)));
+        uint fullHash = uint(keccak256(abi.encodePacked(expiration, block.chainid, nonce, dataHash))) / 8;
+
+        require(
+            verifyProof(proofs, getPasswordHash(), fullHash, allHash),
+            "DeVault:: verify proof fail"
+        );
+
+        guardians = _guardians;
+        needGuardiansNum = _needGuardiansNum;
+        doneGuardians = new address[](_needGuardiansNum);
+
+        emit SetRecover(_guardians, needGuardiansNum, nonce);
+
+        _increaseNonce();
+    }
+
+    function getRecover() public view returns (
+        address[] memory,
+        uint,
+        address[] memory
+    )
+    {
+        return (guardians, needGuardiansNum, doneGuardians);
+    }
 }

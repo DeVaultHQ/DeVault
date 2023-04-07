@@ -4,6 +4,7 @@ import { ethers } from "hardhat";
 import { utils,  } from "ethers"
 import { Provider } from "@ethersproject/providers";
 import { getProof, b, s } from "../scripts/proofs"
+import {address} from "hardhat/internal/core/config/config-validation";
 
 describe("DeVault", function () {
     const key = "123"; // number string
@@ -190,6 +191,31 @@ describe("DeVault", function () {
                     const nonceRes = await deVault.getNonce()
                     expect(nonceRes).to.equal(b("2"))
                 })
+            })
+        })
+
+    })
+
+    describe("SetRecover", function () {
+        it("Should set the recover success", async function () {
+            const { deVault, owner } = await loadFixture(deployDeVault);
+            const provider = owner.provider as Provider;
+            const nonce = "0"; // number string
+            const needGuardiansNum = '3';
+            const accounts = await ethers.getSigners();
+            const guardians = [accounts[0].address, accounts[1].address, accounts[2].address];
+            const dataHash = s(b(utils.solidityKeccak256(['address[]', 'uint256'], [guardians, needGuardiansNum])));
+            const proofs = await getProof(provider, pwd, key, nonce, dataHash);
+
+            await deVault.setRecover(guardians, needGuardiansNum, proofs.proof, proofs.expiration, proofs.allhash);
+
+            const res = await deVault.getRecover();
+            expect(res[0]).to.eql(guardians);
+            expect(res[1]).to.equal(needGuardiansNum);
+
+            it("Should set the nonce to 1", async function () {
+                const nonceRes = await deVault.getNonce()
+                expect(nonceRes).to.equal(b("1"))
             })
         })
 
