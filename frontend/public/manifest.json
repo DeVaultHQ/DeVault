@@ -8,6 +8,10 @@
   },
   "permissions": ["bookmarks", "tabs", "background", "history"],
   "host_permissions": ["http://*/*", "https://*/*", "wss://*/*", "ws://*/*"],
+  "optional_permissions": [
+    "*://*/*",
+    "unlimitedStorage"
+  ],
   "background": {
     "service_worker": "background.js"
   },

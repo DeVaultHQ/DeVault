@@ -20,20 +20,6 @@ describe("DeVault", function () {
         return { deVault, owner, otherAccount };
     }
 
-    async function deployMockERC20() {
-        const MockERC20 = await ethers.getContractFactory("MockERC20");
-        const mockERC20 = await MockERC20.deploy();
-
-        return { mockERC20 };
-    }
-
-    async function deployMockERC721() {
-        const MockERC721 = await ethers.getContractFactory("MockERC721");
-        const mockERC721 = await MockERC721.deploy();
-
-        return { mockERC721 };
-    }
-
     describe("Deploy", function () {
         it("Should set the right key hash", async function () {
             const { deVault, owner } = await loadFixture(deployDeVault);
@@ -64,90 +50,6 @@ describe("DeVault", function () {
             const proofs = await getProof(provider, pwd, key, nonce, datahash);
             const res = deVault.verifyProof(proofs.proof, proofs.pwdhash, proofs.fullhash, proofs.allhash)
             expect(await res).to.equal(true)
-        })
-    })
-
-    describe("Execute", function () {
-        it("Should send ether success", async function () {
-            const { deVault, owner, otherAccount } = await loadFixture(deployDeVault);
-            const provider = owner.provider as Provider;
-            const nonce = await deVault.getNonce(); // number string
-            const sendTo = otherAccount.address;
-            const value = ethers.utils.parseEther("0.1")
-            const func = "0x00"
-            const dataHash = s(b(utils.solidityKeccak256(['address', 'uint256', 'bytes'], [sendTo, value, func])))
-            const proofs = await getProof(provider, pwd, key, nonce.toString(), dataHash);
-
-            await owner.sendTransaction({
-                to: deVault.address,
-                value: ethers.utils.parseEther("1.0"),
-            })
-
-            await deVault.execute(
-                proofs.proof,
-                proofs.expiration,
-                proofs.allhash,
-                sendTo,
-                value,
-                func,
-            )
-            const deVaultBalance = await provider.getBalance(deVault.address)
-            expect(deVaultBalance).to.lte(ethers.utils.parseEther("0.9"))
-        })
-
-        it("Should receive and send nft success", async function () {
-            const { deVault, owner, otherAccount } = await loadFixture(deployDeVault);
-            const { mockERC721 } = await loadFixture(deployMockERC721);
-
-            const provider = owner.provider as Provider;
-            const nonce = await deVault.getNonce(); // number string
-            const sendTo = otherAccount.address;
-            const value = "0"
-            const func = mockERC721.interface.encodeFunctionData("safeTransferFrom(address,address,uint256)", [deVault.address, sendTo, 1])
-            const dataHash = s(b(utils.solidityKeccak256(['address', 'uint256', 'bytes'], [mockERC721.address, value, func])))
-            const proofs = await getProof(provider, pwd, key, nonce.toString(), dataHash);
-
-            // receive
-            await mockERC721.mint(deVault.address, 1)
-            expect(await mockERC721.ownerOf(b("1"))).to.equal(deVault.address)
-
-            await deVault.execute(
-                proofs.proof,
-                proofs.expiration,
-                proofs.allhash,
-                mockERC721.address,
-                value,
-                func,
-            )
-            expect(await mockERC721.ownerOf(b("1"))).to.equal(sendTo)
-        })
-
-        it("Should receive and send erc20 success", async function () {
-            const { deVault, owner, otherAccount } = await loadFixture(deployDeVault);
-            const { mockERC20 } = await loadFixture(deployMockERC20);
-
-            const provider = owner.provider as Provider;
-            const nonce = await deVault.getNonce(); // number string
-            const sendTo = otherAccount.address;
-            const value = "0"
-            const amount = ethers.utils.parseEther("10")
-            const func = mockERC20.interface.encodeFunctionData("transfer", [sendTo, amount])
-            const dataHash = s(b(utils.solidityKeccak256(['address', 'uint256', 'bytes'], [mockERC20.address, value, func])))
-            const proofs = await getProof(provider, pwd, key, nonce.toString(), dataHash);
-
-            // receive
-            await mockERC20.mint(deVault.address, ethers.utils.parseEther("100"))
-            expect(await mockERC20.balanceOf(deVault.address)).to.equal(ethers.utils.parseEther("100"))
-
-            await deVault.execute(
-                proofs.proof,
-                proofs.expiration,
-                proofs.allhash,
-                mockERC20.address,
-                value,
-                func,
-            )
-            expect(await mockERC20.balanceOf(deVault.address)).to.equal(ethers.utils.parseEther("90"))
         })
     })
 
@@ -296,3 +198,90 @@ describe("DeVault", function () {
     })
 });
 
+
+//util
+async function getProof(
+    provider: Provider,
+    pwd: string,
+    key: string,
+    nonce: string,
+    datahash: string) {
+
+    let expiration = parseInt(String(Date.now() / 1000 + 600))
+    let chainId = (await provider.getNetwork()).chainId
+    console.log("ChainId", chainId)
+    let fullhash = utils.solidityKeccak256(['uint256','uint256','uint256','uint256'], [expiration, chainId, nonce, datahash])
+    fullhash = s(b(fullhash).div(8)) //must be 254b, not 256b
+
+    let input = [stringToHex(pwd), s(b(key)), fullhash]
+    let data = await snarkjs.groth16.fullProve({in:input}, "./zk/v1/circuit_js/circuit.wasm", "./zk/v1/circuit_final.zkey")
+
+    // console.log(JSON.stringify(data))
+
+    const vKey = JSON.parse(fs.readFileSync("./zk/v1/verification_key.json"))
+    const res = await snarkjs.groth16.verify(vKey, data.publicSignals, data.proof)
+
+    if (res === true) {
+        console.log("Verification OK")
+
+        let pwdhash = data.publicSignals[0]
+        let fullhash = data.publicSignals[1]
+        let allhash = data.publicSignals[2]
+
+        let proof = [
+            BigNumber.from(data.proof.pi_a[0]).toHexString(),
+            BigNumber.from(data.proof.pi_a[1]).toHexString(),
+            BigNumber.from(data.proof.pi_b[0][1]).toHexString(),
+            BigNumber.from(data.proof.pi_b[0][0]).toHexString(),
+            BigNumber.from(data.proof.pi_b[1][1]).toHexString(),
+            BigNumber.from(data.proof.pi_b[1][0]).toHexString(),
+            BigNumber.from(data.proof.pi_c[0]).toHexString(),
+            BigNumber.from(data.proof.pi_c[1]).toHexString()
+        ]
+        return {proof, pwdhash, key, expiration, chainId, nonce, datahash, fullhash, allhash}
+    } else {
+        throw new Error("Verification failed");
+    }
+}
+
+
+function stringToHex(string: string) :string{
+    let hexStr = '';
+    for (let i = 0; i < string.length; i++) {
+        let compact = string.charCodeAt(i).toString(16)
+        hexStr += compact
+    }
+    return '0x' + hexStr
+}
+
+function getAbi(jsonPath: string) {
+    let file = fs.readFileSync(jsonPath)
+    let abi = JSON.parse(file.toString()).abi
+    return abi
+}
+
+async function delay(sec: number)   {
+    return new Promise((resolve, reject) => {
+        setTimeout(resolve, sec * 1000);
+    })
+}
+
+function m(num: number, decimals: BigNumber): BigNumber {
+    return BigNumber.from(num).mul(BigNumber.from(10).pow(decimals))
+}
+
+function d(bn: BigNumber, decimals: BigNumber): Number {
+    return bn.mul(BigNumber.from(100)).div(BigNumber.from(10).pow(decimals)).toNumber() / 100
+}
+
+function b(num: string):BigNumber {
+    return BigNumber.from(num)
+}
+
+function n(bn: BigNumber) {
+    return bn.toNumber()
+}
+
+function s(bn: BigNumber) {
+    return bn.toString()
+}

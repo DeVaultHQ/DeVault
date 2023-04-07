@@ -8,6 +8,11 @@ export default function RecoverDialog({
   isOpen: boolean;
   setIsOpen: (v: boolean) => void;
 }) {
+  
+  function onsubmit() {
+
+    setIsOpen(false)
+  }
   return (
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-10" onClose={() => setIsOpen(false)}>
@@ -73,7 +78,7 @@ export default function RecoverDialog({
                   <button
                     type="button"
                     className="inline-flex justify-center rounded-md border border-transparent bg-blue-100 px-4 py-2 text-sm font-medium text-blue-900 hover:bg-blue-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                    onClick={() => setIsOpen(false)}
+                    onClick={() => onsubmit()}
                   >
                     Submit
                   </button>

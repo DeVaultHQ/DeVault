@@ -57,7 +57,6 @@ export function useVault() {
       }));
       passwords.push(...list);
     });
-    console.log('passworkds', passwords);
     return passwords;
   }, [passwordMap, plaintext]);
 
