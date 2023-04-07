@@ -12,7 +12,6 @@ export async function getProof(
 
     let expiration = parseInt(String(Date.now() / 1000 + 600))
     let chainId = (await provider.getNetwork()).chainId
-    console.log("ChainId", chainId)
     let fullhash = utils.solidityKeccak256(['uint256','uint256','uint256','uint256'], [expiration, chainId, nonce, datahash])
     fullhash = s(b(fullhash).div(8)) //must be 254b, not 256b
 
