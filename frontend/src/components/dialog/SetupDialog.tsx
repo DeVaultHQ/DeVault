@@ -1,9 +1,11 @@
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment, useState } from 'react';
-import { generateSecretKey, getUserId } from '../../utils/user';
+import { generateSecretKey, getPwdHash, getUserId } from '../../utils/user';
 import { aesEncrypt, getAesIV, getAesKey } from '../../utils/AES';
 import { StorageKeys } from '../../constants/keys';
 import { useLocalStorageState } from 'ahooks';
+import { useContractWrite, usePrepareContractWrite } from 'wagmi';
+import { DeVaultFactoryAbi } from '../../abi/DeVaultFactoryAbi';
 
 export default function SetupDialog({
   isOpen,
@@ -15,12 +17,23 @@ export default function SetupDialog({
   const [email, setEmail] = useState('');
   const [masterPassword, setMasterPassword] = useState('');
   const [reenter, setReenter] = useState('');
+  const [userId, setUserId] = useState('');
+  const [pwdHass, setPwdHash] = useState('');
 
   const [initialized, setInitialized] = useLocalStorageState(StorageKeys.vaultSetupFinished, {
     defaultValue: false,
   });
 
-  function onSubmit() {
+  const { config: factoryContractConfig } = usePrepareContractWrite({
+    address: '0x21569c8c917406fE705dDb1664523D2AF67A73a3',
+    abi: DeVaultFactoryAbi,
+    functionName: 'createDeVault',
+    args: [userId, pwdHass],
+  });
+
+  const { writeAsync: factoryContractWrite } = useContractWrite(factoryContractConfig);
+
+  async function onSubmit() {
     if (!email || !masterPassword || !reenter) return;
     if (masterPassword !== reenter) return;
     setInitialized(true);
@@ -28,12 +41,24 @@ export default function SetupDialog({
     const secretKey = generateSecretKey();
     window.localStorage.setItem(StorageKeys.getSecretKey(masterPassword), secretKey);
 
-    const transferPass = getUserId(email, secretKey);
+    setUserId(getUserId(email, secretKey));
+    setPwdHash(await getPwdHash(masterPassword));
     const aesKey = getAesKey(email, masterPassword, secretKey);
     const aesIV = getAesIV(masterPassword, secretKey);
     const encryptedVault = aesEncrypt('', aesKey, aesIV);
     console.log(encryptedVault);
     window.localStorage.setItem(StorageKeys.getVaultKey(masterPassword, secretKey), encryptedVault);
+
+    factoryContractWrite?.().then((data) => {
+      data
+        .wait()
+        .then((res) => {
+          console.log(res);
+        })
+        .catch((e) => {
+          console.log(e);
+        });
+    });
 
     // TODO: background.js
     // TODO: contract
