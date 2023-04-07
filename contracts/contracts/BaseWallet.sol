@@ -29,6 +29,66 @@ abstract contract BaseWallet {
         _nonce = 0; // nonce start from 0
     }
 
+    /**
+     * execute a transaction (called directly from owner, or by entryPoint)
+     */
+    function execute(
+        uint[8] memory proof,
+        uint expiration,
+        uint allhash,
+        address dest,
+        uint256 value,
+        bytes calldata func
+    ) external {
+        uint nonce = getNonce();
+        uint dataHash = uint(keccak256(abi.encodePacked(dest, value, func)));
+        uint fullHash = uint(keccak256(abi.encodePacked(expiration, block.chainid, nonce, dataHash))) / 8; // 256b->254b
+
+        require(
+            verifyProof(proof, getPasswordHash(), fullHash, allhash),
+            "BaseWallet:: verify proof fail"
+        );
+        _increaseNonce();
+        _call(dest, value, func);
+    }
+
+    /**
+     * execute a sequence of transactions
+     */
+    function executeBatch(
+        uint[8] memory proof,
+        uint expiration,
+        uint allhash,
+        address[] calldata dest,
+        bytes[] calldata func
+    ) external {
+        require(dest.length == func.length, "BaseWallet:: wrong array lengths");
+
+        uint nonce = getNonce();
+        uint dataHash = uint(keccak256(abi.encodePacked(dest, keccak256(abi.encode(func)))));
+        uint fullHash = uint(keccak256(abi.encodePacked(expiration, block.chainid, nonce, dataHash))) / 8; // 256b->254b
+        require(
+            verifyProof(proof, getPasswordHash(), fullHash, allhash),
+            "BaseWallet:: verify proof fail"
+        );
+
+        for (uint256 i = 0; i < dest.length; i++) {
+            _call(dest[i], 0, func[i]);
+            _increaseNonce();
+        }
+    }
+
+    function _call(address target, uint256 value, bytes memory data) internal {
+        (bool success, bytes memory result) = target.call{value : value}(data);
+        if (!success) {
+            assembly {
+                revert(add(result, 32), mload(result))
+            }
+        }
+    }
+
+    receive() external payable {}
+
     // == update functions ==
 
     // @notice NO PERMISSION CHECK
