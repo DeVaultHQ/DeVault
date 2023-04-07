@@ -1,0 +1,21 @@
+{
+  "name": "DeVault",
+  "description": "On chain password manager",
+  "version": "1.0",
+  "manifest_version": 3,
+  "action": {
+    "default_popup": "index.html"
+  },
+  "permissions": ["bookmarks", "tabs", "background", "history"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "all_frames": true,
+      "js": ["content.js"],
+      "matches": ["http://*/*", "https://*/*", "file:///*"],
+      "run_at": "document_end"
+    }
+  ]
+}
