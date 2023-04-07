@@ -7,6 +7,7 @@ import { useLocalStorageState } from 'ahooks';
 import { useContractWrite, usePrepareContractWrite } from 'wagmi';
 import { DeVaultFactoryAbi } from '../../abi/DeVaultFactoryAbi';
 import { useVault } from '../../hooks/useVault';
+import IPFSClient from '../../utils/IPFS';
 
 export default function SetupDialog({
   isOpen,
@@ -45,7 +46,7 @@ export default function SetupDialog({
     window.localStorage.setItem(StorageKeys.emailKey, email);
 
     setUserId(getUserId(email, secretKey));
-    setPwdHash(await getPwdHash(masterPassword));
+    setPwdHash(getUserId(email, secretKey));
     const aesKey = getAesKey(email, masterPassword, secretKey);
     const aesIV = getAesIV(masterPassword, secretKey);
     const vaultText = `email|${email}|${email}`;
@@ -54,21 +55,22 @@ export default function SetupDialog({
 
     init(email, vaultText);
     window.localStorage.setItem(StorageKeys.getVaultKey(masterPassword, secretKey), encryptedVault);
-
     factoryContractWrite?.().then((data) => {
       data
         .wait()
         .then((res) => {
-          console.log(res);
+          let contract = res.logs[0].topics[2];
+          window.localStorage.setItem('contractAddress', contract);
+          IPFSClient.uploadFile('').then((cid) => {
+            // TODO: background.js
+            // TODO: contract
+            setIsOpen(false);
+          });
         })
         .catch((e) => {
           console.log(e);
         });
     });
-
-    // TODO: background.js
-    // TODO: contract
-    setIsOpen(false);
   }
 
   return (

@@ -1,7 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { hash } from './hash';
 import { BigNumber } from 'ethers';
-const snarkjs = require("snarkjs");
 
 export function generateSecretKey() {
   return uuidv4();
@@ -13,7 +12,8 @@ export function getUserId(email: string, secretKey: string) {
 
 export async function getPwdHash(pwd: string) {
   let input = [stringToHex(pwd)]
-  let data = await snarkjs.groth16.fullProve({in:input}, "/zk/circuit.wasm", "/zk/circuit_final.zkey")
+  //@ts-ignore
+  let data = await window.snarkjs.groth16.fullProve({in:input}, "/zk/circuit.wasm", "/zk/circuit_final.zkey")
   return data.publicSignals[0]
 }
 
