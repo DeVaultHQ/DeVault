@@ -23,7 +23,6 @@
     "extension-port-stream": "^2.0.1",
     "js-sha256": "^0.9.0",
     "metamask-extension-provider": "^3.0.0",
-    "nft.storage": "^7.0.3",
     "post-message-stream": "^3.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

@@ -15,7 +15,6 @@ export function useVault() {
 
   const passwordMap = useMemo(() => {
     const items = plaintext.split('\n');
-    console.log('map', items);
     const _passwords: Map<string, [{ uname: string; pwd: string; index: number }]> = new Map();
 
     if (items.length) {
@@ -58,7 +57,6 @@ export function useVault() {
       }));
       passwords.push(...list);
     });
-    console.log(plaintext);
     console.log('passworkds', passwords);
     return passwords;
   }, [passwordMap, plaintext]);
