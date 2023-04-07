@@ -1,17 +1,11 @@
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { BigNumber, utils,  } from "ethers"
-import {Provider} from "@ethersproject/providers";
-const snarkjs = require("snarkjs");
-const fs = require("fs");
 
 describe("DeVaultFactory", function () {
     const key = "123"; // number string
     const pwd = "abc 123";
     const passwordHash = "20234527716876976045330331029277415515200138841533840117928897402759085012640";
-    // const accounts = await ethers.getSigners()
-    // const provider = accounts[0].provider
 
     async function deployDeVaultFactory() {
         // Contracts are deployed using the first signer/account by default
@@ -39,21 +33,5 @@ describe("DeVaultFactory", function () {
             // create duplicate
             await expect(deVaultFactory.createDeVault(key, passwordHash)).to.be.revertedWith("DeVaultFactory: DeVault already exists");
         });
-
-        // it("Should set the right password hash", async function () {
-        //     const {deVault, owner} = await loadFixture(deployDeVault);
-        //
-        //     expect(await deVault.getPasswordHash()).to.equal(passwordHash);
-        // });
-        //
-        // it("Should set the right nonce", async function () {
-        //     const {deVault, owner} = await loadFixture(deployDeVault);
-        //
-        //     expect(await deVault.getNonce()).to.equal(b("0"));
-        // });
     });
 });
-
-function b(num: string):BigNumber {
-    return BigNumber.from(num)
-}
