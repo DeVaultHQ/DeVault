@@ -16,8 +16,9 @@ contract DeVaultFactory {
 
     function createDeVault(uint keyHash, uint passwordHash) public returns (DeVault) {
         require(address(_devaults[keyHash]) == address(0), "DeVaultFactory: DeVault already exists");
+        bytes32 _salt = keccak256(abi.encodePacked(keyHash, passwordHash, block.number));
 
-        DeVault devault = new DeVault(keyHash, passwordHash);
+        DeVault devault = new DeVault{salt: _salt}(keyHash, passwordHash);
         _devaults[keyHash] = devault;
 
         emit CreateDeVault(keyHash, address(devault));
