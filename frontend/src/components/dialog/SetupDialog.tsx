@@ -1,9 +1,13 @@
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment, useState } from 'react';
-import { generateSecretKey, getUserId } from '../../utils/user';
+import { generateSecretKey, getPwdHash, getUserId } from '../../utils/user';
 import { aesEncrypt, getAesIV, getAesKey } from '../../utils/AES';
 import { StorageKeys } from '../../constants/keys';
 import { useLocalStorageState } from 'ahooks';
+import { useContractWrite, usePrepareContractWrite } from 'wagmi';
+import { DeVaultFactoryAbi } from '../../abi/DeVaultFactoryAbi';
+import { useVault } from '../../hooks/useVault';
+import IPFSClient from '../../utils/IPFS';
 
 export default function SetupDialog({
   isOpen,
@@ -15,29 +19,58 @@ export default function SetupDialog({
   const [email, setEmail] = useState('');
   const [masterPassword, setMasterPassword] = useState('');
   const [reenter, setReenter] = useState('');
+  const [userId, setUserId] = useState('');
+  const [pwdHass, setPwdHash] = useState('');
+  const { init } = useVault();
 
   const [initialized, setInitialized] = useLocalStorageState(StorageKeys.vaultSetupFinished, {
     defaultValue: false,
   });
 
-  function onSubmit() {
+  const { config: factoryContractConfig } = usePrepareContractWrite({
+    address: '0x21569c8c917406fE705dDb1664523D2AF67A73a3',
+    abi: DeVaultFactoryAbi,
+    functionName: 'createDeVault',
+    args: [userId, pwdHass],
+  });
+
+  const { writeAsync: factoryContractWrite } = useContractWrite(factoryContractConfig);
+
+  async function onSubmit() {
     if (!email || !masterPassword || !reenter) return;
     if (masterPassword !== reenter) return;
     setInitialized(true);
 
     const secretKey = generateSecretKey();
     window.localStorage.setItem(StorageKeys.getSecretKey(masterPassword), secretKey);
+    window.localStorage.setItem(StorageKeys.emailKey, email);
 
-    const transferPass = getUserId(email, secretKey);
+    setUserId(getUserId(email, secretKey));
+    setPwdHash(getUserId(email, secretKey));
     const aesKey = getAesKey(email, masterPassword, secretKey);
     const aesIV = getAesIV(masterPassword, secretKey);
-    const encryptedVault = aesEncrypt('', aesKey, aesIV);
+    const vaultText = `email|${email}|${email}`;
+    const encryptedVault = aesEncrypt(vaultText, aesKey, aesIV);
     console.log(encryptedVault);
-    window.localStorage.setItem(StorageKeys.getVaultKey(masterPassword, secretKey), encryptedVault);
 
-    // TODO: background.js
-    // TODO: contract
-    setIsOpen(false);
+    init(email, vaultText);
+    window.localStorage.setItem(StorageKeys.getVaultKey(masterPassword, secretKey), encryptedVault);
+    factoryContractWrite?.().then((data) => {
+      data
+        .wait()
+        .then((res) => {
+          let contract = res.logs[0].topics[2];
+          window.localStorage.setItem('contractAddress', contract);
+          IPFSClient.uploadFile('').then((cid) => {
+            // TODO: background.js
+            // TODO: contract
+            setIsOpen(false);
+          });
+        })
+        .catch((e) => {
+          console.log(e);
+        });
+    });
   }
 
   return (

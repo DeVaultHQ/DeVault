@@ -17,11 +17,11 @@ export default class IPFSClient {
     return this._instance;
   }
 
-  public async uploadFile(text: string) {
+  public static async uploadFile(text: string) {
     return await IPFSClient.instance.storeBlob(new Blob([text]));
   }
 
-  public getFile(cid: string) {
+  public static getFile(cid: string) {
     return new Promise((resolve, reject) => {
       let url = `https://${cid}${IPFS_DOMAIN_SUFFIX}`;
       axios

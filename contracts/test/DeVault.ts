@@ -1,7 +1,7 @@
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { utils,  } from "ethers"
+import { utils,} from "ethers"
 import { Provider } from "@ethersproject/providers";
 import { getProof, b, s } from "../scripts/proofs"
 
@@ -9,8 +9,6 @@ describe("DeVault", function () {
     const key = "123"; // number string
     const pwd = "abc 123";
     const passwordHash = b("20234527716876976045330331029277415515200138841533840117928897402759085012640");
-    // const accounts = await ethers.getSigners()
-    // const provider = accounts[0].provider
 
     async function deployDeVault() {
         // Contracts are deployed using the first signer/account by default
@@ -240,6 +238,60 @@ describe("DeVault", function () {
                 const key = await deVault.getVaultKey(i);
                 expect(key).to.equal([vaultKey, newVaultKey][i])
             }
+        })
+    })
+
+    describe("SetRecover", function () {
+        it("Should set the recover success", async function () {
+            const { deVault, owner } = await loadFixture(deployDeVault);
+            const provider = owner.provider as Provider;
+            const nonce = "0"; // number string
+            const needGuardiansNum = '3';
+            const accounts = await ethers.getSigners();
+            const guardians = [accounts[0].address, accounts[1].address, accounts[2].address];
+            const dataHash = s(b(utils.solidityKeccak256(['address[]', 'uint256'], [guardians, needGuardiansNum])));
+            const proofs = await getProof(provider, pwd, key, nonce, dataHash);
+
+            await deVault.setRecover(guardians, needGuardiansNum, proofs.proof, proofs.expiration, proofs.allhash);
+
+            const res = await deVault.getRecover();
+            expect(res[0]).to.eql(guardians);
+            expect(res[1]).to.equal(needGuardiansNum);
+
+            it("Should set the nonce to 1", async function () {
+                const nonceRes = await deVault.getNonce()
+                expect(nonceRes).to.equal(b("1"))
+            })
+        })
+    })
+
+    describe("RecoverPassword", function () {
+        it("Should recover the password success", async function () {
+            const {deVault, owner} = await loadFixture(deployDeVault);
+            const newPasswordHash = b("17466748668564451514422910246405586532533310782245479172674728689683134284428");
+            const provider = owner.provider as Provider;
+            const nonce = "0"; // number string
+            const needGuardiansNum = '3';
+            const accounts = await ethers.getSigners();
+            const guardians = [accounts[0].address, accounts[1].address, accounts[2].address];
+            const dataHash = s(b(utils.solidityKeccak256(['address[]', 'uint256'], [guardians, needGuardiansNum])));
+            const proofs = await getProof(provider, pwd, key, nonce, dataHash);
+
+            await deVault.setRecover(guardians, needGuardiansNum, proofs.proof, proofs.expiration, proofs.allhash);
+
+            const res = await deVault.getRecover();
+            expect(res[0]).to.eql(guardians);
+            expect(res[1]).to.equal(needGuardiansNum);
+
+            await deVault.connect(accounts[0]).recoverPassword(newPasswordHash);
+            console.log('recoverPassword done 0');
+            await deVault.connect(accounts[1]).recoverPassword(newPasswordHash);
+            console.log('recoverPassword done 1');
+            await deVault.connect(accounts[2]).recoverPassword(newPasswordHash);
+            console.log('recoverPassword done 2');
+
+            let recover = await deVault.getPasswordHash();
+            expect(recover).to.equal(newPasswordHash);
         })
     })
 });
