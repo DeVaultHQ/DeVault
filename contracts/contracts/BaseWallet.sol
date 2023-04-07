@@ -103,9 +103,6 @@ abstract contract BaseWallet {
         _nonce = _nonce + 1;
     }
 
-    // TODO: execute
-    // TODO: execute batch
-
     // == view functions ==
 
     function getNonce() public view returns (uint) {
