@@ -1,8 +1,9 @@
 import { secureHash } from '../utils/hash';
 
 export class StorageKeys {
-  static vaultKey = 'vault_key';
-  static secretKey = 'secret_key';
+  static vaultKey = 'devault_vault_key';
+  static secretKey = 'devault_secret_key';
+  static emailKey = 'devault_email_key';
   static vaultSetupFinished = 'vault_setup_finished';
 
   static getVaultKey(masterPassword: string, secretKey: string) {

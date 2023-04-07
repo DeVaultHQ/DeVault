@@ -43,9 +43,13 @@ export default class Vault {
   }
 
   public getAllPasswords() {
-    const passwords: { uname: string; pwd: string }[] = [];
+    const passwords: { uname: string; pwd: string; domain: string }[] = [];
     this._passwords.forEach((value, key) => {
-      passwords.push(...value);
+      const list = value.map((e) => ({
+        ...e,
+        domain: key,
+      }));
+      passwords.push(...list);
     });
     return passwords;
   }
@@ -55,7 +59,7 @@ export default class Vault {
   }
 
   public addPassword(domain: string, username: string, password: string) {
-    return this._plaintext + `${domain}|${aesEncrypt(username, this._email, '')}|${password}\n`;
+    return this._plaintext + `\n${domain}|${aesEncrypt(username, this._email, '')}|${password}`;
   }
 
   public delPassword(index: number) {

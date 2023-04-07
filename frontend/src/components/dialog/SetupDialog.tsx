@@ -6,6 +6,7 @@ import { StorageKeys } from '../../constants/keys';
 import { useLocalStorageState } from 'ahooks';
 import { useContractWrite, usePrepareContractWrite } from 'wagmi';
 import { DeVaultFactoryAbi } from '../../abi/DeVaultFactoryAbi';
+import { useVault } from '../../hooks/useVault';
 
 export default function SetupDialog({
   isOpen,
@@ -19,6 +20,7 @@ export default function SetupDialog({
   const [reenter, setReenter] = useState('');
   const [userId, setUserId] = useState('');
   const [pwdHass, setPwdHash] = useState('');
+  const { init } = useVault();
 
   const [initialized, setInitialized] = useLocalStorageState(StorageKeys.vaultSetupFinished, {
     defaultValue: false,
@@ -40,13 +42,17 @@ export default function SetupDialog({
 
     const secretKey = generateSecretKey();
     window.localStorage.setItem(StorageKeys.getSecretKey(masterPassword), secretKey);
+    window.localStorage.setItem(StorageKeys.emailKey, email);
 
     setUserId(getUserId(email, secretKey));
     setPwdHash(await getPwdHash(masterPassword));
     const aesKey = getAesKey(email, masterPassword, secretKey);
     const aesIV = getAesIV(masterPassword, secretKey);
-    const encryptedVault = aesEncrypt('', aesKey, aesIV);
+    const vaultText = `email|${email}|${email}`;
+    const encryptedVault = aesEncrypt(vaultText, aesKey, aesIV);
     console.log(encryptedVault);
+
+    init(email, vaultText);
     window.localStorage.setItem(StorageKeys.getVaultKey(masterPassword, secretKey), encryptedVault);
 
     factoryContractWrite?.().then((data) => {
