@@ -154,6 +154,18 @@ describe("DeVault", function () {
     })
 
     describe("SetVault", function () {
+        it("Should set empty vault fail", async function () {
+            const { deVault, owner } = await loadFixture(deployDeVault);
+            const provider = owner.provider as Provider;
+            const nonce = "0"; // number string
+            const vaultKey = "123123123";
+            const vaultValue = "";
+            const dataHash = s(b(utils.solidityKeccak256(['uint256', 'string'], [vaultKey, vaultValue])))
+            const proofs = await getProof(provider, pwd, key, nonce, dataHash);
+
+            await expect(deVault.setVault(vaultKey, vaultValue, proofs.proof, proofs.expiration, proofs.allhash)).to.be.revertedWith("DeVault:: vault value is empty")
+        })
+
         it("Should set the vault success", async function () {
             const { deVault, owner } = await loadFixture(deployDeVault);
             const provider = owner.provider as Provider;
@@ -168,31 +180,67 @@ describe("DeVault", function () {
             const res = await deVault.getVault(vaultKey)
             expect(res).to.equal(vaultValue)
 
-            it("Should set the nonce to 1", async function () {
-                const nonceRes = await deVault.getNonce()
-                expect(nonceRes).to.equal(b("1"))
-            })
-
-            // override the vault
-            it("Should override the vault success", async function () {
-                const nonce = "1"; // number string
-                const vaultKey = "45645445";
-                const vaultValue = "encrypted(pwd, new_value)";
-                const dataHash = s(b(utils.solidityKeccak256(['uint256', 'string'], [vaultKey, vaultValue])))
-                const proofs = await getProof(provider, pwd, key, nonce, dataHash);
-
-                await deVault.setVault(vaultKey, vaultValue, proofs.proof, proofs.expiration, proofs.allhash)
-
-                const res = await deVault.getVault(vaultKey)
-                expect(res).to.equal(vaultValue)
-
-                it("Should set the nonce to 2", async function () {
-                    const nonceRes = await deVault.getNonce()
-                    expect(nonceRes).to.equal(b("2"))
-                })
-            })
+            let nonceRes = await deVault.getNonce()
+            expect(nonceRes).to.equal(b("1"))
         })
 
+        it("Should overwrite the vault success", async function () {
+            const { deVault, owner } = await loadFixture(deployDeVault);
+            const provider = owner.provider as Provider;
+            const nonce = "0"; // number string
+            const vaultKey = "123123123";
+            const vaultValue = "encrypted(pwd, value)";
+            const dataHash = s(b(utils.solidityKeccak256(['uint256', 'string'], [vaultKey, vaultValue])))
+            const proofs = await getProof(provider, pwd, key, nonce, dataHash);
+
+            await deVault.setVault(vaultKey, vaultValue, proofs.proof, proofs.expiration, proofs.allhash)
+
+            const res = await deVault.getVault(vaultKey)
+            expect(res).to.equal(vaultValue)
+
+            let nonceRes = await deVault.getNonce()
+            expect(nonceRes).to.equal(b("1"))
+
+            const newNonce = "1"; // number string
+            const newVaultKey = "45645445";
+            const newVaultValue = "encrypted(pwd, new_value)";
+            const newDataHash = s(b(utils.solidityKeccak256(['uint256', 'string'], [newVaultKey, newVaultValue])))
+            const newProofs = await getProof(provider, pwd, key, newNonce, newDataHash);
+
+            await deVault.setVault(newVaultKey, newVaultValue, newProofs.proof, newProofs.expiration, newProofs.allhash)
+
+            const newValue = await deVault.getVault(vaultKey)
+            expect(newValue).to.equal(vaultValue)
+
+            nonceRes = await deVault.getNonce()
+            expect(nonceRes).to.equal(b("2"))
+        })
+
+        it("Should get keys success", async function () {
+            const { deVault, owner } = await loadFixture(deployDeVault);
+            const provider = owner.provider as Provider;
+            const nonce = "0"; // number string
+            const vaultKey = "123123123";
+            const vaultValue = "encrypted(pwd, value)";
+            const dataHash = s(b(utils.solidityKeccak256(['uint256', 'string'], [vaultKey, vaultValue])))
+            const proofs = await getProof(provider, pwd, key, nonce, dataHash);
+
+            await deVault.setVault(vaultKey, vaultValue, proofs.proof, proofs.expiration, proofs.allhash)
+
+            const newNonce = "1"; // number string
+            const newVaultKey = "45645445";
+            const newVaultValue = "encrypted(pwd, new_value)";
+            const newDataHash = s(b(utils.solidityKeccak256(['uint256', 'string'], [newVaultKey, newVaultValue])))
+            const newProofs = await getProof(provider, pwd, key, newNonce, newDataHash);
+            await deVault.setVault(newVaultKey, newVaultValue, newProofs.proof, newProofs.expiration, newProofs.allhash)
+
+            const keys = await deVault.getVaultKeysLength();
+            expect(keys).to.equal(b("2"))
+            for (let i = 0; i < 2; i++) {
+                const key = await deVault.getVaultKey(i);
+                expect(key).to.equal([vaultKey, newVaultKey][i])
+            }
+        })
     })
 });
 
