@@ -14,10 +14,8 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     } else {
       sendResponse({ data: { username: '', password: '' } });
     }
+  } else if(request.type == 'setVault') {
+    console.log('received vault', request.vault);
+    vault = request.vault;
   }
 });
-
-function setVaultInstance(vault) {
-  console.log('received vault', vault);
-  vault = vault;
-}

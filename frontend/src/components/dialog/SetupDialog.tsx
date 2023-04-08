@@ -53,7 +53,7 @@ export default function SetupDialog({
     setReenter('');
     setIsLoading(false);
     setIsCreateSuccess(false);
-  }, []);
+  }, [isOpen]);
 
   async function onSubmit() {
     if (!email || !masterPassword || !reenter) return;
