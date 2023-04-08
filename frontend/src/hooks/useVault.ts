@@ -1,15 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useRecoilState } from 'recoil';
 import { plaintextState, vaultState } from '../store/store';
-import { aesDecrypt, aesEncrypt } from '../utils/AES';
 
 export function useVault() {
   const [vault, setVault] = useRecoilState(vaultState);
   const [plaintext, setPlainText] = useRecoilState(plaintextState);
-  const [email, setEmail] = useState('');
 
-  function init(email: string, plaintext: string) {
-    setEmail(email);
+  function init(plaintext: string) {
     setPlainText(plaintext);
   }
 
@@ -29,14 +26,14 @@ export function useVault() {
         if (domain && username && password) {
           if (_passwords.has(domain)) {
             _passwords.get(domain)?.push({
-              uname: aesDecrypt(username, email, ''),
+              uname: username,
               pwd: password,
               index: i,
             });
           } else {
             _passwords.set(domain, [
               {
-                uname: aesDecrypt(username, email, ''),
+                uname: username,
                 pwd: password,
                 index: i,
               },
@@ -46,7 +43,7 @@ export function useVault() {
       }
     }
     return _passwords;
-  }, [email, plaintext]);
+  }, [plaintext]);
 
   const passwordList = useMemo(() => {
     const passwords: { uname: string; pwd: string; domain: string; index: number }[] = [];
@@ -61,7 +58,7 @@ export function useVault() {
   }, [passwordMap, plaintext]);
 
   function addPassword(domain: string, username: string, password: string) {
-    const text = plaintext + `\n${domain}|${aesEncrypt(username, email, '')}|${password}`;
+    const text = plaintext + `\n${domain}|${username}|${password}`;
     setPlainText(text);
   }
 

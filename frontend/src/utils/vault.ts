@@ -1,16 +1,9 @@
-import { aesDecrypt, aesEncrypt } from './AES';
-
 export default class Vault {
   /**
-   * @param plaintext format  domain|AES(username)|AES(password)  \n
+   * @param plaintext format  domain|username|password  \n
    */
   private _plaintext: string = '';
-  private _email: string = '';
   private _passwords: Map<string, [{ uname: string; pwd: string; index: number }]> = new Map();
-
-  constructor(email: string) {
-    this._email = email;
-  }
 
   public build(plaintext: string) {
     this._passwords.clear();
@@ -20,7 +13,7 @@ export default class Vault {
 
   /**
    * @param plaintext
-   * @param address username aes key
+   * @param address usernam key
    */
   public initVault() {
     const items = this._plaintext.split('\n');
@@ -31,10 +24,10 @@ export default class Vault {
           if (this._passwords.has(domain)) {
             this._passwords
               .get(domain)
-              ?.push({ uname: aesDecrypt(username, this._email, ''), pwd: password, index: i });
+              ?.push({ uname: username, pwd: password, index: i });
           } else {
             this._passwords.set(domain, [
-              { uname: aesDecrypt(username, this._email, ''), pwd: password, index: i },
+              { uname: username, pwd: password, index: i },
             ]);
           }
         }
@@ -59,7 +52,7 @@ export default class Vault {
   }
 
   public addPassword(domain: string, username: string, password: string) {
-    return this._plaintext + `\n${domain}|${aesEncrypt(username, this._email, '')}|${password}`;
+    return this._plaintext + `\n${domain}|${username}|${password}`;
   }
 
   public delPassword(index: number) {
@@ -70,7 +63,7 @@ export default class Vault {
 
   public modifyPassword(index: number, domain: string, username: string, password: string) {
     const items = this._plaintext.split('\n');
-    items[index] = `${domain}|${aesEncrypt(username, this._email, '')}|${password}`;
+    items[index] = `${domain}|${username}|${password}`;
     return items.join('\n');
   }
 }

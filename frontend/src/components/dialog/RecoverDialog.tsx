@@ -1,5 +1,15 @@
 import { Dialog, Transition } from '@headlessui/react';
-import { Fragment } from 'react';
+import { BigNumber, ethers } from 'ethers';
+import { Fragment, useState } from 'react';
+import { DeVaultFactoryAbi } from '../../abi/DeVaultFactoryAbi';
+import { useProvider, useSigner } from 'wagmi';
+import { getUserId } from '../../utils/user';
+import { AAContractAbi } from '../../abi/AAContractAbi';
+import IPFSClient from '../../utils/IPFS';
+import { hash } from '../../utils/hash';
+import { StorageKeys } from '../../constants/keys';
+import { aesDecrypt, getAesIV, getAesKey } from '../../utils/AES';
+import { useVault } from '../../hooks/useVault';
 
 export default function RecoverDialog({
   isOpen,
@@ -8,10 +18,47 @@ export default function RecoverDialog({
   isOpen: boolean;
   setIsOpen: (v: boolean) => void;
 }) {
-  
-  function onsubmit() {
+  const [email, setEmail] = useState('');
+  const [masterPassword, setMasterPassword] = useState('');
+  const [secretKey, setSecretKey] = useState('');
 
-    setIsOpen(false)
+  const provider = useProvider();
+  const { init: initVault } = useVault();
+
+  async function onsubmit() {
+    if (!email || !masterPassword || !secretKey) return;
+
+    const vaultKey = hash('1');
+    const factoryContract = new ethers.Contract(
+      '0x8ede80F98290383A39695809B5413A8D28783B40',
+      DeVaultFactoryAbi,
+      provider
+    );
+    const userId = BigNumber.from(getUserId(email, secretKey)).toString();
+    let devaultAddress = await factoryContract.getDeVault(userId);
+    if (devaultAddress) {
+      const aaContract = new ethers.Contract(devaultAddress, AAContractAbi, provider);
+      let vaultVaule = await aaContract.getVault(vaultKey);
+      if (vaultVaule) {
+        let file: any = await IPFSClient.getFile(vaultVaule);
+        if (file) {
+          let text = await file.text();
+          const aesKey = getAesKey(email, masterPassword, secretKey);
+          const aesIV = getAesIV(masterPassword, secretKey);
+          let plainText = aesDecrypt(text, aesKey, aesIV);
+          initVault(plainText)
+          window.localStorage.setItem(StorageKeys.getSecretKey(masterPassword), secretKey);
+          window.localStorage.setItem(StorageKeys.emailKey, email);
+          setIsOpen(false);
+        } else {
+          console.error('file not exist');
+        }
+      } else {
+        console.error('valut not exist');
+      }
+    } else {
+      console.error('not exist');
+    }
   }
   return (
     <Transition appear show={isOpen} as={Fragment}>
@@ -51,6 +98,8 @@ export default function RecoverDialog({
                     </label>
                     <input
                       type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       placeholder="example@devault.io"
                       className="input w-full max-w-xs input-sm"
                     />
@@ -60,6 +109,8 @@ export default function RecoverDialog({
                     <input
                       type="password"
                       placeholder="Password"
+                      value={masterPassword}
+                      onChange={(e) => setMasterPassword(e.target.value)}
                       className="input w-full max-w-xs input-sm"
                     />
                     <label className="label mt-2">
@@ -69,6 +120,8 @@ export default function RecoverDialog({
                     <input
                       type="password"
                       placeholder="Password"
+                      value={secretKey}
+                      onChange={(e) => setSecretKey(e.target.value)}
                       className="input w-full max-w-xs input-sm"
                     />
                   </div>

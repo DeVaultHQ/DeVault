@@ -11,12 +11,13 @@ import {
 import { aesEncrypt, getAesIV, getAesKey } from '../../utils/AES';
 import { StorageKeys } from '../../constants/keys';
 import { useLocalStorageState } from 'ahooks';
-import { useContractWrite, usePrepareContractWrite, useProvider, useSigner } from 'wagmi';
+import { useProvider, useSigner } from 'wagmi';
 import { DeVaultFactoryAbi } from '../../abi/DeVaultFactoryAbi';
 import { useVault } from '../../hooks/useVault';
 import { AAContractAbi } from '../../abi/AAContractAbi';
 import { hash } from '../../utils/hash';
 import { BigNumber, ethers } from 'ethers';
+import IPFSClient from '../../utils/IPFS';
 // import IPFSClient from '../../utils/IPFS';
 
 export default function SetupDialog({
@@ -29,14 +30,13 @@ export default function SetupDialog({
   const [email, setEmail] = useState('');
   const [masterPassword, setMasterPassword] = useState('');
   const [reenter, setReenter] = useState('');
-  const { init } = useVault();
 
   const provider = useProvider();
   const signer = useSigner();
 
-  const [initialized, setInitialized] = useLocalStorageState(StorageKeys.vaultSetupFinished, {
-    defaultValue: false,
-  });
+  const { init: initVault } = useVault();
+
+  const [initialized, setInitialized] = useState(false)
 
   async function onSubmit() {
     if (!email || !masterPassword || !reenter) return;
@@ -51,52 +51,65 @@ export default function SetupDialog({
 
     const secretKey = generateSecretKey();
     const vaultKey = hash('1');
-    const vaultValue = 'fdfdfdfdfdf';
     const userId = BigNumber.from(getUserId(email, secretKey)).toString();
 
     window.localStorage.setItem(StorageKeys.getSecretKey(masterPassword), secretKey);
     window.localStorage.setItem(StorageKeys.emailKey, email);
-    let passwordHash = await getProof(
-      provider,
-      masterPassword,
-      userId,
-      '0',
-      getDataHash(vaultKey, vaultValue)
-    );
-    const pwdHass = passwordHash.pwdhash;
+
     const aesKey = getAesKey(email, masterPassword, secretKey);
     const aesIV = getAesIV(masterPassword, secretKey);
     const vaultText = `email|${email}|${email}\n`;
     const encryptedVault = aesEncrypt(vaultText, aesKey, aesIV);
 
-    init(email, vaultText);
-    window.localStorage.setItem(StorageKeys.getVaultKey(masterPassword, secretKey), encryptedVault);
-    
-    let factoryContractSigner = factoryContract.connect(signer.data as ethers.Signer);
-    let factoryContractTransaction = await factoryContractSigner.createDeVault(userId, pwdHass);
-    let res = await factoryContractTransaction.wait();
-    let contract = BigNumber.from(res.logs[0].topics[2]).toHexString();
-    window.localStorage.setItem('contractAddress', contract);
-    const tokenContract = new ethers.Contract(contract, AAContractAbi, provider);
-    let nonce: BigNumber = await tokenContract.getNonce();
-    let proof = await getProof(
-      provider,
-      masterPassword,
-      userId,
-      nonce.toString(),
-      getDataHash(vaultKey, vaultValue)
-    );
+    try {
+      const fileCid = await IPFSClient.uploadFile(encryptedVault);
 
-    let txSigner = tokenContract.connect(signer.data as ethers.Signer);
-    let transaction = await txSigner.setVault(
-      vaultKey,
-      vaultValue,
-      proof.proof,
-      proof.expiration,
-      proof.allhash
-    );
-    await transaction.wait();
-    setIsOpen(false);
+      let passwordHash = await getProof(
+        provider,
+        masterPassword,
+        userId,
+        '0',
+        getDataHash(vaultKey, fileCid)
+      );
+      const pwdHass = passwordHash.pwdhash;
+
+      window.localStorage.setItem(
+        StorageKeys.getVaultKey(masterPassword, secretKey),
+        encryptedVault
+      );
+
+      let factoryContractSigner = factoryContract.connect(signer.data as ethers.Signer);
+      let factoryContractTransaction = await factoryContractSigner.createDeVault(userId, pwdHass);
+      let res = await factoryContractTransaction.wait();
+      let contract = BigNumber.from(res.logs[0].topics[2]).toHexString();
+      window.localStorage.setItem(StorageKeys.contractAddrKey, contract);
+      const aaContract = new ethers.Contract(contract, AAContractAbi, provider);
+      let nonce: BigNumber = await aaContract.getNonce();
+      let proof = await getProof(
+        provider,
+        masterPassword,
+        userId,
+        nonce.toString(),
+        getDataHash(vaultKey, fileCid)
+      );
+
+      let txSigner = aaContract.connect(signer.data as ethers.Signer);
+      let transaction = await txSigner.setVault(
+        vaultKey,
+        fileCid,
+        proof.proof,
+        proof.expiration,
+        proof.allhash
+      );
+      await transaction.wait();
+      initVault(vaultText);
+      setIsOpen(false);
+      console.log('your secretKey is', secretKey)
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setInitialized(false)
+    }
   }
 
   return (
@@ -166,9 +179,15 @@ export default function SetupDialog({
                 </div>
 
                 <div className="mt-4">
-                  <button type="button" className="btn w-full " onClick={onSubmit}>
-                    Submit
-                  </button>
+                  {initialized ? (
+                    <button type="button" className="btn w-full btn-disabled">
+                      loading
+                    </button>
+                  ) : (
+                    <button type="button" className="btn w-full " onClick={onSubmit}>
+                      Submit
+                    </button>
+                  )}
                 </div>
               </Dialog.Panel>
             </Transition.Child>

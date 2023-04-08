@@ -20,7 +20,7 @@ function App() {
   return (
     <div className="App relative">
       <header className="App-header">
-        {true && <Setup />}
+        {isConnected && !initialized && <Setup />}
         {isConnected && locked && initialized && <Lock setUnlock={() => setLocked(false)} />}
         {!isConnected && (
           <button

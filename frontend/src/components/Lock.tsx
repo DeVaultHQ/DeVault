@@ -27,7 +27,7 @@ export default function Lock({ setUnlock }: { setUnlock: () => void }) {
         return false;
       }
 
-      init(email, plaintext);
+      init(plaintext);
     } catch (error) {
       console.error(error);
     }
