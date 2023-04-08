@@ -1,12 +1,12 @@
 import { useLocalStorageState } from 'ahooks';
-import { useAccount, useConnect, useDisconnect } from 'wagmi';
+import { useState } from 'react';
+import { useAccount, useConnect } from 'wagmi';
 import './App.css';
+import Header from './components/Header';
 import Lock from './components/Lock';
 import Setup from './components/Setup';
 import VaultList from './components/VaultList';
 import { StorageKeys } from './constants/keys';
-import { useEffect, useState } from 'react';
-import Header from './components/Header';
 
 function App() {
   const { connectAsync, connectors } = useConnect();

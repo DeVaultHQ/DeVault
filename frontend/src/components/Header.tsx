@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useContractRead, useDisconnect } from 'wagmi';
+import { useEffect, useState } from 'react';
+import { useDisconnect } from 'wagmi';
 import { StorageKeys } from '../constants/keys';
 
 export default function Header({
