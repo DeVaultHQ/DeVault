@@ -38,3 +38,15 @@ export function getAesKey(address: string, masterPassword: string, secretKey: st
 export function getAesIV(masterPassword: string, secretKey: string) {
   return hash(masterPassword + secretKey).slice(0, 16);
 }
+
+export function aesEncryptVault(
+  email: string,
+  masterPassword: string,
+  secretKey: string,
+  text: string
+) {
+  const aesKey = getAesKey(email, masterPassword, secretKey);
+  const aesIV = getAesIV(masterPassword, secretKey);
+  const encryptedVault = aesEncrypt(text, aesKey, aesIV);
+  return encryptedVault;
+}

@@ -1,16 +1,17 @@
 import { Dialog, Transition } from '@headlessui/react';
+import { useLocalStorageState } from 'ahooks';
 import { BigNumber, ethers } from 'ethers';
 import { Fragment, useEffect, useState } from 'react';
-import { DeVaultFactoryAbi } from '../../abi/DeVaultFactoryAbi';
-import { useProvider, useSigner } from 'wagmi';
-import { getUserId } from '../../utils/user';
+import { useProvider } from 'wagmi';
 import { AAContractAbi } from '../../abi/AAContractAbi';
+import { DeVaultFactoryAbi } from '../../abi/DeVaultFactoryAbi';
+import { devaultContract } from '../../constants/contracts';
+import { StorageKeys } from '../../constants/keys';
+import { useVault } from '../../hooks/useVault';
+import { aesDecrypt, getAesIV, getAesKey } from '../../utils/AES';
 import IPFSClient from '../../utils/IPFS';
 import { hash } from '../../utils/hash';
-import { StorageKeys } from '../../constants/keys';
-import { aesDecrypt, getAesIV, getAesKey } from '../../utils/AES';
-import { useVault } from '../../hooks/useVault';
-import { useLocalStorageState } from 'ahooks';
+import { getUserId } from '../../utils/user';
 
 export default function RecoverDialog({
   isOpen,
@@ -45,11 +46,7 @@ export default function RecoverDialog({
     if (!email || !masterPassword || !secretKey) return;
     setIsLoading(true);
     const vaultKey = hash('1');
-    const factoryContract = new ethers.Contract(
-      '0x8ede80F98290383A39695809B5413A8D28783B40',
-      DeVaultFactoryAbi,
-      provider
-    );
+    const factoryContract = new ethers.Contract(devaultContract, DeVaultFactoryAbi, provider);
     const userId = BigNumber.from(getUserId(email, secretKey)).toString();
     try {
       let devaultAddress = await factoryContract.getDeVault(userId);
@@ -59,6 +56,9 @@ export default function RecoverDialog({
         if (vaultVaule) {
           let file: any = await IPFSClient.getFile(vaultVaule);
           if (file) {
+            setIsRecoverSuccess(true);
+            setInitialized(true);
+
             let text = await file.text();
             const aesKey = getAesKey(email, masterPassword, secretKey);
             const aesIV = getAesIV(masterPassword, secretKey);

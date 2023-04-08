@@ -9,8 +9,10 @@ export default function VaultList() {
   return (
     <div className="w-full h-full flex relative min-h-screen text-white">
       <div className="basis-1/4">
-        {passwordList?.map((e) => (
-          <p>{e.uname}</p>
+        {passwordList?.map((e, index) => (
+          <div key={index}>
+            <p>{e.uname}</p>
+          </div>
         ))}
       </div>
       <div className="basis-3/4"></div>
@@ -18,7 +20,6 @@ export default function VaultList() {
         <button className="btn" onClick={() => setIsOpen(true)}>
           Add Record
         </button>
-        {passwordList?.length}
       </div>
       <AddRecordDialog isOpen={isOpen} setIsOpen={setIsOpen} />
     </div>

@@ -10,3 +10,8 @@ export const plaintextState = atom<string>({
   key: 'plaintextState',
   default: '',
 });
+
+export const masterPasswordState = atom<string>({
+  key: 'masterPasswordState',
+  default: '',
+});

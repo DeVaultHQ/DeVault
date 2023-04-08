@@ -1,12 +1,15 @@
 import { useState } from 'react';
+import { useSetRecoilState } from 'recoil';
 import { StorageKeys } from '../constants/keys';
 import { useVault } from '../hooks/useVault';
 import logo from '../logo.svg';
+import { masterPasswordState } from '../store/store';
 import { aesDecrypt, getAesIV, getAesKey } from '../utils/AES';
 
 export default function Lock({ setUnlock }: { setUnlock: () => void }) {
   const [pass, setPass] = useState('');
   const { init } = useVault();
+  const setMasterState = useSetRecoilState(masterPasswordState);
 
   function validate() {
     try {
@@ -26,8 +29,8 @@ export default function Lock({ setUnlock }: { setUnlock: () => void }) {
       if (!plaintext) {
         return false;
       }
-
       init(plaintext);
+      setMasterState(pass);
     } catch (error) {
       console.error(error);
     }

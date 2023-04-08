@@ -1,6 +1,16 @@
 import { Dialog, Transition } from '@headlessui/react';
+import { BigNumber, ethers } from 'ethers';
 import { Fragment, useState } from 'react';
+import { useRecoilValue } from 'recoil';
+import { useProvider, useSigner } from 'wagmi';
+import { AAContractAbi } from '../../abi/AAContractAbi';
+import { StorageKeys } from '../../constants/keys';
 import { useVault } from '../../hooks/useVault';
+import { masterPasswordState } from '../../store/store';
+import { aesEncryptVault } from '../../utils/AES';
+import IPFSClient from '../../utils/IPFS';
+import { hash } from '../../utils/hash';
+import { getDataHash, getProof, getUserId } from '../../utils/user';
 
 export default function AddRecordDialog({
   isOpen,
@@ -12,14 +22,59 @@ export default function AddRecordDialog({
   const [domain, setDomain] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const masterPassword = useRecoilValue(masterPasswordState);
   const { addPassword } = useVault();
+  const [loading, setIsLoading] = useState(false);
 
-  function onSubmit() {
-    addPassword(domain, username, password);
-    setDomain('');
-    setUsername('');
-    setPassword('');
-    setIsOpen(false);
+  const provider = useProvider();
+  const signer = useSigner();
+
+  async function onSubmit() {
+    try {
+      setIsLoading(true);
+      const aaAddr = window.localStorage.getItem(StorageKeys.contractAddrKey) || '';
+      const secretKey = window.localStorage.getItem(StorageKeys.getSecretKey(masterPassword)) || '';
+      const email = window.localStorage.getItem(StorageKeys.emailKey) || '';
+
+      // Upload
+      const plainText = addPassword(domain, username, password);
+      const encrypted = aesEncryptVault(email, masterPassword, secretKey, plainText);
+      const fileCid = await IPFSClient.uploadFile(encrypted);
+
+      const userId = BigNumber.from(getUserId(email, secretKey)).toString();
+      const vaultKey = hash('1');
+
+      const aaContract = new ethers.Contract(aaAddr, AAContractAbi, provider);
+      let nonce: BigNumber = await aaContract.getNonce();
+
+      let proof = await getProof(
+        provider,
+        masterPassword,
+        userId,
+        nonce.toString(),
+        getDataHash(vaultKey, fileCid)
+      );
+
+      let txSigner = aaContract.connect(signer.data as ethers.Signer);
+      let transaction = await txSigner.setVault(
+        vaultKey,
+        fileCid,
+        proof.proof,
+        proof.expiration,
+        proof.allhash
+      );
+      await transaction.wait();
+
+      window.localStorage.setItem(StorageKeys.getVaultKey(masterPassword, secretKey), encrypted);
+
+      setIsLoading(false);
+      setDomain('');
+      setUsername('');
+      setPassword('');
+      setIsOpen(false);
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   return (
@@ -89,9 +144,15 @@ export default function AddRecordDialog({
                 </div>
 
                 <div className="mt-4">
-                  <button type="button" className="btn w-full " onClick={onSubmit}>
-                    Submit
-                  </button>
+                  {loading ? (
+                    <button type="button" className="btn w-full btn-disabled">
+                      Tx Processing
+                    </button>
+                  ) : (
+                    <button type="button" className="btn w-full " onClick={onSubmit}>
+                      Submit
+                    </button>
+                  )}
                 </div>
               </Dialog.Panel>
             </Transition.Child>

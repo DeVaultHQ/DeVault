@@ -18,6 +18,8 @@ import { AAContractAbi } from '../../abi/AAContractAbi';
 import { hash } from '../../utils/hash';
 import { BigNumber, ethers } from 'ethers';
 import IPFSClient from '../../utils/IPFS';
+import { masterPasswordState } from '../../store/store';
+import { useSetRecoilState } from 'recoil';
 // import IPFSClient from '../../utils/IPFS';
 
 export default function SetupDialog({
@@ -34,6 +36,7 @@ export default function SetupDialog({
   const provider = useProvider();
   const signer = useSigner();
   const [showSecretKey, setShowSecretKey] = useState('');
+  const setRecoilMaster = useSetRecoilState(masterPasswordState);
 
   const { init: initVault } = useVault();
 
@@ -72,7 +75,7 @@ export default function SetupDialog({
 
     const aesKey = getAesKey(email, masterPassword, secretKey);
     const aesIV = getAesIV(masterPassword, secretKey);
-    const vaultText = `email|${email}|${email}\n`;
+    const vaultText = `email|${email}|${email}`;
     const encryptedVault = aesEncrypt(vaultText, aesKey, aesIV);
 
     setShowSecretKey(secretKey);
@@ -118,6 +121,8 @@ export default function SetupDialog({
       );
       await transaction.wait();
       initVault(vaultText);
+
+      setRecoilMaster(masterPassword);
       setIsCreateSuccess(true);
       setInitialized(true);
     } catch (e) {

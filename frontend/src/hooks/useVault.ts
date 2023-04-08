@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useRecoilState } from 'recoil';
 import { plaintextState, vaultState } from '../store/store';
 
@@ -55,11 +55,12 @@ export function useVault() {
       passwords.push(...list);
     });
     return passwords;
-  }, [passwordMap, plaintext]);
+  }, [passwordMap]);
 
   function addPassword(domain: string, username: string, password: string) {
     const text = plaintext + `\n${domain}|${username}|${password}`;
     setPlainText(text);
+    return text;
   }
 
   return { vault, setVault, passwordList, init, addPassword };
