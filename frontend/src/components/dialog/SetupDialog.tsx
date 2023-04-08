@@ -38,7 +38,7 @@ export default function SetupDialog({
   const [showSecretKey, setShowSecretKey] = useState('');
   const setRecoilMaster = useSetRecoilState(masterPasswordState);
 
-  const { init: initVault } = useVault();
+  const { init: initVault, passwordList } = useVault();
 
   const [loading, setIsLoading] = useState(false);
   const [isCreateSuccess, setIsCreateSuccess] = useState(false);
@@ -120,8 +120,6 @@ export default function SetupDialog({
         proof.allhash
       );
       await transaction.wait();
-      initVault(vaultText);
-
       setRecoilMaster(masterPassword);
       setIsCreateSuccess(true);
       setInitialized(true);

@@ -8,7 +8,7 @@ import { aesDecrypt, getAesIV, getAesKey } from '../utils/AES';
 
 export default function Lock({ setUnlock }: { setUnlock: () => void }) {
   const [pass, setPass] = useState('');
-  const { init } = useVault();
+  const { init, passwordList} = useVault();
   const setMasterState = useSetRecoilState(masterPasswordState);
 
   function validate() {
@@ -31,6 +31,9 @@ export default function Lock({ setUnlock }: { setUnlock: () => void }) {
       }
       init(plaintext);
       setMasterState(pass);
+      if(chrome.runtime) {
+        chrome.runtime.sendMessage({ type: 'setVault', vault: passwordList }, function (response) {});
+      }
     } catch (error) {
       console.error(error);
     }

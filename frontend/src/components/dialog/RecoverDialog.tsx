@@ -28,7 +28,7 @@ export default function RecoverDialog({
   const [isRecoverSuccess, setIsRecoverSuccess] = useState(false);
 
   const provider = useProvider();
-  const { init: initVault } = useVault();
+  const { init: initVault, passwordList } = useVault();
 
   const [initialized, setInitialized] = useLocalStorageState(StorageKeys.vaultSetupFinished, {
     defaultValue: false,
