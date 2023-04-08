@@ -1,5 +1,5 @@
 import { Dialog, Transition } from '@headlessui/react';
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import {
   generateSecretKey,
   getDataHash,
@@ -33,15 +33,29 @@ export default function SetupDialog({
 
   const provider = useProvider();
   const signer = useSigner();
+  const [showSecretKey, setShowSecretKey] = useState('');
 
   const { init: initVault } = useVault();
 
-  const [initialized, setInitialized] = useState(false)
+  const [loading, setIsLoading] = useState(false);
+  const [isCreateSuccess, setIsCreateSuccess] = useState(false);
+
+  const [initialized, setInitialized] = useLocalStorageState(StorageKeys.vaultSetupFinished, {
+    defaultValue: false,
+  });
+
+  useEffect(() => {
+    setEmail('');
+    setMasterPassword('');
+    setReenter('');
+    setIsLoading(false);
+    setIsCreateSuccess(false);
+  }, []);
 
   async function onSubmit() {
     if (!email || !masterPassword || !reenter) return;
     if (masterPassword !== reenter) return;
-    setInitialized(true);
+    setIsLoading(true);
 
     const factoryContract = new ethers.Contract(
       '0x8ede80F98290383A39695809B5413A8D28783B40',
@@ -61,6 +75,7 @@ export default function SetupDialog({
     const vaultText = `email|${email}|${email}\n`;
     const encryptedVault = aesEncrypt(vaultText, aesKey, aesIV);
 
+    setShowSecretKey(secretKey);
     try {
       const fileCid = await IPFSClient.uploadFile(encryptedVault);
 
@@ -103,12 +118,12 @@ export default function SetupDialog({
       );
       await transaction.wait();
       initVault(vaultText);
-      setIsOpen(false);
-      console.log('your secretKey is', secretKey)
+      setIsCreateSuccess(true);
+      setInitialized(true);
     } catch (e) {
       console.error(e);
     } finally {
-      setInitialized(false)
+      setIsLoading(false);
     }
   }
 
@@ -143,52 +158,72 @@ export default function SetupDialog({
                   Setup New Vault
                 </Dialog.Title>
 
-                <div className="mt-2">
-                  <div className="form-control w-full">
-                    <label className="label">
-                      <span className="label-text">Your email</span>
-                    </label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="example@devault.io"
-                      className="input w-full input-sm"
-                    />
-                    <label className="label mt-2">
-                      <span className="label-text">Master Password</span>
-                    </label>
-                    <input
-                      type="password"
-                      placeholder="Password"
-                      value={masterPassword}
-                      onChange={(e) => setMasterPassword(e.target.value)}
-                      className="input w-full input-sm"
-                    />
-                    <label className="label mt-2">
-                      <span className="label-text">Re-enter Password</span>
-                    </label>
-                    <input
-                      type="password"
-                      placeholder="Password"
-                      value={reenter}
-                      onChange={(e) => setReenter(e.target.value)}
-                      className="input w-full input-sm"
-                    />
+                {isCreateSuccess ? (
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="text-3xl mt-5">
+                      Congratulations! Your vault has been created successfully.
+                    </div>
+                    <div className="text-xl mt-10">Your secret key is {showSecretKey}</div>
+                    <button
+                      type="button"
+                      className="btn w-full mt-16"
+                      onClick={() => {
+                        setIsOpen(false);
+                      }}
+                    >
+                      OK
+                    </button>
                   </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="mt-2">
+                      <div className="form-control w-full">
+                        <label className="label">
+                          <span className="label-text">Your email</span>
+                        </label>
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="example@devault.io"
+                          className="input w-full input-sm"
+                        />
+                        <label className="label mt-2">
+                          <span className="label-text">Master Password</span>
+                        </label>
+                        <input
+                          type="password"
+                          placeholder="Password"
+                          value={masterPassword}
+                          onChange={(e) => setMasterPassword(e.target.value)}
+                          className="input w-full input-sm"
+                        />
+                        <label className="label mt-2">
+                          <span className="label-text">Re-enter Password</span>
+                        </label>
+                        <input
+                          type="password"
+                          placeholder="Password"
+                          value={reenter}
+                          onChange={(e) => setReenter(e.target.value)}
+                          className="input w-full input-sm"
+                        />
+                      </div>
+                    </div>
 
-                <div className="mt-4">
-                  {initialized ? (
-                    <button type="button" className="btn w-full btn-disabled">
-                      loading
-                    </button>
-                  ) : (
-                    <button type="button" className="btn w-full " onClick={onSubmit}>
-                      Submit
-                    </button>
-                  )}
-                </div>
+                    <div className="mt-4">
+                      {loading ? (
+                        <button type="button" className="btn w-full btn-disabled">
+                          loading
+                        </button>
+                      ) : (
+                        <button type="button" className="btn w-full " onClick={onSubmit}>
+                          Submit
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
               </Dialog.Panel>
             </Transition.Child>
           </div>
