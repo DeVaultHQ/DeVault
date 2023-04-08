@@ -50,8 +50,10 @@ export default function RecoverDialog({
     const userId = BigNumber.from(getUserId(email, secretKey)).toString();
     try {
       let devaultAddress = await factoryContract.getDeVault(userId);
+
       if (devaultAddress) {
         const aaContract = new ethers.Contract(devaultAddress, AAContractAbi, provider);
+        window.localStorage.setItem(StorageKeys.contractAddrKey, devaultAddress);
         let vaultVaule = await aaContract.getVault(vaultKey);
         if (vaultVaule) {
           let file: any = await IPFSClient.getFile(vaultVaule);
