@@ -1,15 +1,18 @@
 body {
   width: 100%;
-  min-width: 800px;
-  margin: 0 auto;
-  height: 600px;
-  background-color: #282c34;
+  height: 100vh;
+  background-color: #000000;
+  padding-top: 20px;
 }
 
 .App {
   text-align: center;
   overflow-y: auto;
-  min-height: 100%;
+  width: 400px;
+  background: #353e51;
+  min-height: 800px;
+  margin: 0 auto;
+  @apply rounded-xl;
 }
 
 .App-logo {
@@ -29,7 +32,6 @@ body {
   align-items: center;
   justify-content: center;
   font-size: calc(10px + 2vmin);
-  margin-top: 100px;
 }
 
 .App-link {
@@ -44,3 +46,7 @@ body {
     transform: rotate(360deg);
   }
 } */
+
+.dropdown-content {
+  text-align: center @apply shadow-menu bg-accent/60 rounded backdrop-blur;
+}
