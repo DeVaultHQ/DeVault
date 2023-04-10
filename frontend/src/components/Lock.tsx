@@ -5,10 +5,11 @@ import { useVault } from '../hooks/useVault';
 import logo from '../logo.svg';
 import { masterPasswordState } from '../store/store';
 import { aesDecrypt, getAesIV, getAesKey } from '../utils/AES';
+import Vault from '../utils/vault';
 
 export default function Lock({ setUnlock }: { setUnlock: () => void }) {
   const [pass, setPass] = useState('');
-  const { init, passwordList} = useVault();
+  const { init } = useVault();
   const setMasterState = useSetRecoilState(masterPasswordState);
 
   function validate() {
@@ -31,8 +32,13 @@ export default function Lock({ setUnlock }: { setUnlock: () => void }) {
       }
       init(plaintext);
       setMasterState(pass);
-      if(chrome.runtime) {
-        chrome.runtime.sendMessage({ type: 'setVault', vault: passwordList }, function (response) {});
+      if (chrome.runtime) {
+        const vault = new Vault();
+        vault.build(plaintext);
+        chrome.runtime.sendMessage(
+          { type: 'setVault', vault: vault.getAllPasswords() },
+          function (response) {}
+        );
       }
     } catch (error) {
       console.error(error);

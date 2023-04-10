@@ -19,7 +19,7 @@ export default class Vault {
     const items = this._plaintext.split('\n');
     if (items.length) {
       for (let i = 0; i < items.length; i++) {
-        const [domain, username, password] = this._plaintext[i].split('|');
+        const [domain, username, password] = items[i].split('|');
         if (domain && username && password) {
           if (this._passwords.has(domain)) {
             this._passwords
